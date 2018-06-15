@@ -1,18 +1,17 @@
 package proxy;
 
-import android.content.Context;
-import android.net.wifi.WifiManager;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Environment;
-import android.support.annotation.NonNull;
 
-import com.example.dannylo.easy_app.DevicesDiscoveredBluetooth;
+import com.example.dannylo.easy_app.ToolsUtil;
 
 import org.eclipse.californium.core.CoapServer;
 import org.teleal.cling.UpnpService;
 import org.teleal.cling.UpnpServiceImpl;
 import org.teleal.cling.android.AndroidUpnpServiceConfiguration;
-import org.teleal.cling.binding.annotations.UpnpServiceType;
-import org.teleal.cling.binding.xml.Descriptor;
 import org.teleal.cling.controlpoint.ActionCallback;
 import org.teleal.cling.model.action.ActionInvocation;
 import org.teleal.cling.model.message.header.STAllHeader;
@@ -20,8 +19,6 @@ import org.teleal.cling.model.meta.Action;
 import org.teleal.cling.model.meta.ActionArgument;
 import org.teleal.cling.model.meta.RemoteDevice;
 import org.teleal.cling.model.meta.RemoteService;
-import org.teleal.cling.model.types.ServiceType;
-import org.teleal.cling.model.types.UDAServiceType;
 import org.teleal.cling.registry.DefaultRegistryListener;
 import org.teleal.cling.registry.Registry;
 import org.teleal.cling.registry.RegistryListener;
@@ -38,11 +35,9 @@ import org.teleal.cling.model.meta.Service;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
 
 import br.ufrn.framework.virtualentity.resources.Resource;
 
@@ -52,19 +47,14 @@ public class ProxyUPnpForAndroid implements IProxy {
     private UpnpService upnpService;
     private Map<String, Service> mapServices = new HashMap<>();
     private List<String> actionsRepport = new ArrayList<>();
-
-
     public static final String FILE_ACTIONS = "actions_discovered.txt";
-
-
     public static final String ACTION_KEY = "ACTION_KEY";
     public static final String SERVICE_KEY = "SERVICE_KEY";
-
     public static final String GetTemperature = "GetTemperature";
 
     public ProxyUPnpForAndroid(){
         this.upnpService = new UpnpServiceImpl(
-                new AndroidUpnpServiceConfiguration(DevicesDiscoveredBluetooth.getWifiManager()));
+                new AndroidUpnpServiceConfiguration(ToolsUtil.getWifiManager()));
     }
 
     private void createListenerUpnp() {
@@ -75,6 +65,7 @@ public class ProxyUPnpForAndroid implements IProxy {
                 VirtualDevice entity = VirtualDevice.createInstance();
                 entity.getIdentification().setDescriptionName(device.getDisplayString());
                 entity.getIdentification().setIdProtocol(device.getType().getDisplayString());
+                entity.getIdentification().setMainFeature(device.getDetails().getModelDetails().getModelDescription());
                 entity.setServer(new CoapServer());
 
                 for (RemoteService serviceRemote : device.getServices()) {
@@ -166,4 +157,6 @@ public class ProxyUPnpForAndroid implements IProxy {
 
         return results;
     }
+
+
 }

@@ -2,10 +2,12 @@ package proxy;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.Context;
+import android.content.IntentFilter;
 import android.os.Environment;
 
 import com.example.dannylo.easy_app.ComunicationDevice;
-import com.example.dannylo.easy_app.DevicesDiscoveredBluetooth;
+import com.example.dannylo.easy_app.ToolsUtil;
 import com.example.dannylo.easy_app.ManageConnectionClient;
 
 import org.eclipse.californium.core.CoapServer;
@@ -23,9 +25,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import br.ufrn.framework.virtualentity.resources.Resource;
-import javassist.tools.rmi.Sample;
 
 @ProxyTranslate(description = "BluetoothProxy")
 public class ProxyBluetooth implements IProxy {
@@ -37,44 +40,62 @@ public class ProxyBluetooth implements IProxy {
 
     public static final String ACTION = "NewValueTemp(newValue)";
     public static final String FILE_ACTIONS = "actions_discovered.txt";
+    public static final String DEVICE_NAME = "XT1068";
+
+    private static final UUID SENSOR_UUID = UUID.nameUUIDFromBytes("BLUETOOTH SENSOR".getBytes());
 
 
     @Override
     public void discoveryAll() {
-        BluetoothDevice device = null;
+        Context context = ToolsUtil.getContext();
+        boolean find = false;
+        Set<BluetoothDevice> devices = BluetoothAdapter.getDefaultAdapter().getBondedDevices();
+        for(BluetoothDevice device: devices){
+            if(device.getName().equalsIgnoreCase(DEVICE_NAME)){
+                ToolsUtil.getList().add(device);
+                find = true;
+                break;
+            }
+        }
 
-        if(!DevicesDiscoveredBluetooth.getList().isEmpty()){
-           device = DevicesDiscoveredBluetooth.getList().get(0);
+        if(!find){
+            BluetoothAdapter.getDefaultAdapter().startDiscovery();
+        }
+
+        BluetoothDevice deviceFound = null;
+
+        if(!ToolsUtil.getList().isEmpty()){
+            deviceFound = ToolsUtil.getList().get(0);
         }
         //Enquanto o dispositivo Bluetooth não for descoberto e pareado, o loop rodará e dormirá por 3 seg.
-        while (device == null){
+        while (deviceFound == null){
             try {
                 Thread.sleep(5000);
-                device = DevicesDiscoveredBluetooth.getList().get(0);
+                deviceFound = ToolsUtil.getList().get(0);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
 
         VirtualDevice virtualDevice = VirtualDevice.createInstance();
-        virtualDevice.getIdentification().setDescriptionName(device.getName());
-        virtualDevice.getIdentification().setNetworkInfo(device.getAddress());
+        virtualDevice.getIdentification().setDescriptionName(deviceFound.getName());
+        virtualDevice.getIdentification().setNetworkInfo(deviceFound.getAddress());
         virtualDevice.setServer(new CoapServer());
         virtualDevice.setProxy(this);
 
         Resource resource = new Resource();
-        resource.setDescription("ConfigureTermostato");
+        resource.setDescription("ConfigureTermostate");
         resource.getAction().add("NewValueTemp(newValue)");
         virtualDevice.getResources().add(resource);
 
         List<String> actionsRegistered = new ArrayList<>();
         actionsRegistered.add("NewValueTemp(newValue)");
 
-        DefaultCoapInputResource defaultCoapInputResource = new DefaultCoapInputResource("NewValueTemp(newValue)",
+        DefaultCoapInputResource defaultCoapInputResource = new DefaultCoapInputResource("NewValueTemp",
                 this, virtualDevice, "ConfigureTermostato",
-                "NewValueTemp(newValue)");
+                "NewValueTemp");
 
-        virtualDevice.getMappingResources().put("NewValueTemp(newValue)", defaultCoapInputResource);
+        virtualDevice.getMappingResources().put("NewValueTemp", defaultCoapInputResource);
         SampleCoapServer.getInstance().add(defaultCoapInputResource);
 
         SampleCoapServer.getInstance().start();
@@ -99,12 +120,18 @@ public class ProxyBluetooth implements IProxy {
     public boolean send(VirtualDevice virtualDevice, Map<String, String> map, Map<String, String> map1) throws InterruptedException {
         System.out.println("Send is invoked by proxy: " + map.get(UPnpProxy.SERVICE_KEY) + ": " + map.get(UPnpProxy.ACTION_KEY));
         ManageConnectionClient manageConnectionClient = new ManageConnectionClient(
-                DevicesDiscoveredBluetooth.getList().get(0),
+                ToolsUtil.getList().get(0),
                 adapter,
                 map1.get(ProxyBluetooth.VALUE_TERM));
         manageConnectionClient.run();
 
         return true;
+    }
+
+    public static IntentFilter getIntentFound(){
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(BluetoothDevice.ACTION_FOUND);
+        return filter;
     }
 
     @Override
