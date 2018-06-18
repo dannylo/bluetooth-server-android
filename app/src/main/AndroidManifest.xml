@@ -29,11 +29,6 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".RecieverFound"  android:exported="true">
-            <intent-filter>
-                <action android:name="android.bluetooth.device.action.FOUND"/>
-            </intent-filter>
-        </receiver>
 
     </application>
 
